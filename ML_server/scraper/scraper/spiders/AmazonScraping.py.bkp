@@ -1,0 +1,61 @@
+from typing import Any
+import re
+import scrapy
+from scrapy.http import Response
+from ..items import AmazonscrapItem
+
+
+class AmazonSpider(scrapy.Spider):
+    name = 'amazon_spider'
+    start_urls = ['https://www.amazon.com/Lipton-Yellow-Label-Orange-weight/dp/B002EYZM4O/ref=sr_1_4']
+
+    def parse(self, response: Response):
+        # Extracting the product name and price
+        product_name = response.css('#productTitle::text').get().strip()
+        price = response.css('.a-price .a-price-whole::text').get()
+
+        # Extract each review block
+        review_blocks = response.css('.review')
+
+        # Loop through each review block and yield an individual item for each
+        for review in review_blocks:
+            items = AmazonscrapItem()
+
+            review_text = review.css('.review-text-content span::text').get()
+            review_rating = review.css('.review-rating span::text').get()
+
+            # Extracting the "helpful" count
+            helpful_text = review.css('.cr-vote-text::text').get()
+            if helpful_text:
+                helpful_count = helpful_text.strip().split()[0]
+                if helpful_count.lower() == 'one':
+                    helpful_count = '1'
+            else:
+                helpful_count = '0'  # Default if no helpful count is available
+
+            # Fill in the item with data
+            items['product_name'] = product_name
+            items['price'] = price.strip() if price else None
+            items['reviews'] = review_text.strip() if review_text else None
+
+            # Extract only the numeric part of the rating
+            if review_rating:
+                rating_number = self.extract_rating_number(review_rating)
+                items['ratings'] = rating_number
+            else:
+                items['ratings'] = None
+
+            items['helpful_votes'] = helpful_count
+
+            # Yield the item for each review
+            yield items
+
+    def extract_rating_number(self, rating_string: str) -> str:
+        """
+        Extract the numeric part from the rating string.
+        For example, from '4.0 out of 5 stars', extract '4.0'.
+        """
+        match = re.search(r'(\d+(\.\d+)?)', rating_string)
+        if match:
+            return match.group(1)  # Return only the numeric part
+        return None

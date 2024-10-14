@@ -1,0 +1,3 @@
+[submodule "tree/main/ML_server"]
+	path = tree/main/ML_server
+	url = https://github.com/depi-ml/DEPI_Market_Analyzer.git
