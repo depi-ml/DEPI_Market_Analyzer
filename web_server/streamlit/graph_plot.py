@@ -57,7 +57,7 @@ def plot(data,type):
 
     # Layout and design improvements
     fig.update_layout(
-        title="Price Forecast",
+        title=type + " Forecast",
         xaxis_title="Date",
         yaxis_title= type,
         hovermode="x unified",
@@ -79,5 +79,7 @@ def plot(data,type):
 
     '''# Optional: show raw data
     if st.checkbox("Show raw data"):
-        st.subheader("Raw Data")
-        st.write(data)'''
+        '''
+    st.subheader("Raw Data")
+    st.write(data)
+    print(data.describe())

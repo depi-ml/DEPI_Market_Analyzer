@@ -1,0 +1,27 @@
+from PIL import Image, ImageDraw, ImageFont
+
+# Create an image
+width, height = 800, 600
+image = Image.new('RGB', (width, height), 'white')
+draw = ImageDraw.Draw(image)
+
+# Define colors
+colors = ['red', 'green', 'blue', 'purple']
+shapes = ['rectangle', 'ellipse', 'triangle']
+
+# Draw shapes
+def draw_shape(draw, shape, color, x, y, size):
+    if shape == 'rectangle':
+        draw.rectangle([x, y, x+size, y+size], fill=color)
+    elif shape == 'ellipse':
+        draw.ellipse([x, y, x+size, y+size], fill=color)
+    elif shape == 'triangle':
+        draw.polygon([x, y, x+size, y, x+size//2, y-size], fill=color)
+
+# Add shapes and text
+for i, (color, shape) in enumerate(zip(colors, shapes)):
+    draw_shape(draw, shape, color, 100 + i*200, 200, 100)
+    draw.text((100 + i*200, 300), shape, fill=color)
+
+# Save and show image
+image.show()

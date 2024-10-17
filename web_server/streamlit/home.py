@@ -2,7 +2,7 @@ import streamlit as st
 from predictors import prediction_form
 from page_template import header, footer
 from sentiment_analyzer import sentiment_analyzer_form
-
+from PIL import Image
 # Set the page configuration
 st.set_page_config(page_title="Product Insights", page_icon=":mag:", layout="centered")
 

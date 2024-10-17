@@ -14,7 +14,7 @@ except NameError:
 # Function to generate star ratings with half-star using CSS
 def display_star_rating(rating):
     full_stars = int(rating)
-    half_star = (rating - full_stars) >= 0.5
+    half_star = (rating - full_stars) >= 0.2
     empty_stars = 5 - full_stars - (1 if half_star else 0)
 
     # Create full stars, half star, and empty stars

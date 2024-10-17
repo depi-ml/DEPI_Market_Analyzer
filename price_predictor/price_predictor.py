@@ -62,15 +62,33 @@ def run_price_predictor(product_id, time_period, optional_date):
 
     item_data.loc[:, 'ds'] = np.array(item_data['ds'])
 
-    model = Prophet(yearly_seasonality=False, changepoint_prior_scale=0.001)
-    model.add_seasonality(name='yearly', period=365.25, fourier_order=9)
-    model.fit(item_data[['ds', 'y']])
+    item_data['cap'] = item_data['y'].max() #* 1.2 # # Set a cap 20% higher than the max observed demand
+    item_data['floor'] = 0 # Assuming demand can't go negative
+
+    
+    # Initialize Prophet model
+    model = Prophet(growth='logistic', 
+                changepoint_prior_scale=0.05,  # Lower values make the model less sensitive to trend changes
+                yearly_seasonality=True,       # Enable yearly seasonality by default
+                weekly_seasonality=False,      # Disable weekly seasonality if irrelevant
+                daily_seasonality=False)
+    
+    model.add_seasonality(name='yearly', period=365.25, fourier_order=12)
+
+    
+    model.fit(item_data)
+   # model = Prophet(yearly_seasonality=False, changepoint_prior_scale=0.001)
+    #model.add_seasonality(name='yearly', period=365.25, fourier_order=9)
+    #model.fit(item_data[['ds', 'y']])
 
     if optional_date:
         time_period = pd.to_datetime(optional_date) - item_data['ds'].max()
         time_period = time_period.days
 
     future = model.make_future_dataframe(periods=time_period)
+    future['cap'] = item_data['cap'].iloc[0]  # Use the same cap from historical data
+    future['floor'] = 0  # Prevent negative values
+
     forecast = model.predict(future)
 
     cast_data = forecast[['ds','yhat']].copy()
@@ -96,9 +114,7 @@ def run_demand_predictor(product_id, time_period, optional_date):
     # Handling Negative Quantities
     item_data = item_data[item_data['y'] >= 0]
 
-    his_data = item_data[['ds','y']].copy()
-    his_data.columns = ["Date","Price"]
-    his_data['Type'] = 'Historical'
+    
 
     # Ensure the 'ds' column is a numpy array
     item_data.loc[:, 'ds'] = np.array(item_data['ds'])
@@ -106,15 +122,46 @@ def run_demand_predictor(product_id, time_period, optional_date):
     # Aggregate demands on the same days
     item_data = item_data.groupby('ds', as_index=False)['y'].sum()
 
-    model = Prophet(yearly_seasonality=False, changepoint_prior_scale=0.001)
+    his_data = item_data[['ds','y']].copy()
+    his_data.columns = ["Date","Price"]
+    his_data['Type'] = 'Historical'
+
+ 
+    item_data['cap'] = item_data['y'].max() #* 1.2 # # Set a cap 20% higher than the max observed demand
+    item_data['floor'] = 0 # Assuming demand can't go negative 
+
+     # Optional: Remove outliers (you can adjust the threshold as needed)
+    item_data = item_data[item_data['y'] >= item_data['y'].quantile(0.02)]  # Remove bottom 2% outliers
+    item_data = item_data[item_data['y'] <= item_data['y'].quantile(0.98)]  # Remove top 2% outliers
+
+    
+
+    # Initialize Prophet model
+    model = Prophet(growth='logistic', 
+                changepoint_prior_scale=0.05,  # Lower values make the model less sensitive to trend changes
+                yearly_seasonality=True,       # Enable yearly seasonality by default
+                weekly_seasonality=False,      # Disable weekly seasonality if irrelevant
+                daily_seasonality=False)
+    model.add_seasonality(name='yearly', period=365.25, fourier_order=12)
+
+    # Optional: Add specific seasonality or tuning
+    #model.add_seasonality(name='monthly', period=30.5, fourier_order=5)
+    #model.add_seasonality(name='yearly', period=365.25, fourier_order=12)
+    print(item_data.info())
+    print(item_data.describe())
+    model.fit(item_data)
+    '''model = Prophet(yearly_seasonality=False, changepoint_prior_scale=0.001)
     model.add_seasonality(name='yearly', period=365.25, fourier_order=9)
-    model.fit(item_data[['ds', 'y']])
+    model.fit(item_data[['ds', 'y']])'''
 
     if optional_date:
         time_period = pd.to_datetime(optional_date) - item_data['ds'].max()
         time_period = time_period.days
 
     future = model.make_future_dataframe(periods=time_period)
+    future['cap'] = item_data['cap'].iloc[0]  # Use the same cap from historical data
+    future['floor'] = 0  # Prevent negative values
+
     forecast = model.predict(future)
 
     cast_data = forecast[['ds','yhat']].copy()
@@ -126,6 +173,8 @@ def run_demand_predictor(product_id, time_period, optional_date):
     predicted_demand = None
     if optional_date:
         predicted_demand = forecast[forecast['ds'] == optional_date]['yhat'].iloc[-1]
+    print(product_id)
+    print(graph_data.describe())
 
     return predicted_demand, graph_data
 
