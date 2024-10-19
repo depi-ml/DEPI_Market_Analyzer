@@ -7,13 +7,14 @@ import numpy as np
 def plot(data,type):
     # Create a Plotly graph
     fig = go.Figure()
+    
 
     # Plot historical prices
     fig.add_trace(go.Scatter(
         x=data[data['Type'] == 'Historical']["Date"],
         y=data[data['Type'] == 'Historical']["Price"],
         mode='lines',
-        name='Historical Price',
+        name='Historical ' + type,
         line=dict(color='blue', width=3),
         hovertemplate='%{y:.2f}<extra></extra>'
     ))
@@ -23,7 +24,7 @@ def plot(data,type):
         x=data[data['Type'] == 'Forecast']["Date"],
         y=data[data['Type'] == 'Forecast']["Price"],
         mode='lines',
-        name='Forecasted Price',
+        name='Forecasted ' + type,
         line=dict(color='red', width=3, dash='dash'),
         hovertemplate='%{y:.2f}<extra></extra>'
     ))
@@ -81,5 +82,6 @@ def plot(data,type):
     if st.checkbox("Show raw data"):
         '''
     st.subheader("Raw Data")
+    data = data.rename(columns={'Price': type})
     st.write(data)
     print(data.describe())

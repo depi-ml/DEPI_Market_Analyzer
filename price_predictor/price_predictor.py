@@ -12,6 +12,7 @@ import threading
 import uuid
 import os
 from datetime import datetime, timedelta
+from scipy.ndimage import gaussian_filter1d
 
 app = Flask(__name__)
 CORS(app)
@@ -67,14 +68,7 @@ def run_price_predictor(product_id, time_period, optional_date):
 
     
     # Initialize Prophet model
-    model = Prophet(growth='logistic', 
-                changepoint_prior_scale=0.05,  # Lower values make the model less sensitive to trend changes
-                yearly_seasonality=True,       # Enable yearly seasonality by default
-                weekly_seasonality=False,      # Disable weekly seasonality if irrelevant
-                daily_seasonality=False)
-    
-    model.add_seasonality(name='yearly', period=365.25, fourier_order=12)
-
+    model = Prophet(growth='logistic')
     
     model.fit(item_data)
    # model = Prophet(yearly_seasonality=False, changepoint_prior_scale=0.001)
@@ -90,7 +84,8 @@ def run_price_predictor(product_id, time_period, optional_date):
     future['floor'] = 0  # Prevent negative values
 
     forecast = model.predict(future)
-
+    # Apply Gaussian smoothing to reduce high spikes
+    forecast['yhat'] = gaussian_filter1d(forecast['yhat'], sigma=5)
     cast_data = forecast[['ds','yhat']].copy()
     cast_data.columns = ["Date","Price"]
     cast_data['Type'] = 'Forecast'
@@ -137,22 +132,10 @@ def run_demand_predictor(product_id, time_period, optional_date):
     
 
     # Initialize Prophet model
-    model = Prophet(growth='logistic', 
-                changepoint_prior_scale=0.05,  # Lower values make the model less sensitive to trend changes
-                yearly_seasonality=True,       # Enable yearly seasonality by default
-                weekly_seasonality=False,      # Disable weekly seasonality if irrelevant
-                daily_seasonality=False)
-    model.add_seasonality(name='yearly', period=365.25, fourier_order=12)
+    model = Prophet(growth='logistic')
 
-    # Optional: Add specific seasonality or tuning
-    #model.add_seasonality(name='monthly', period=30.5, fourier_order=5)
-    #model.add_seasonality(name='yearly', period=365.25, fourier_order=12)
-    print(item_data.info())
-    print(item_data.describe())
     model.fit(item_data)
-    '''model = Prophet(yearly_seasonality=False, changepoint_prior_scale=0.001)
-    model.add_seasonality(name='yearly', period=365.25, fourier_order=9)
-    model.fit(item_data[['ds', 'y']])'''
+
 
     if optional_date:
         time_period = pd.to_datetime(optional_date) - item_data['ds'].max()
@@ -164,6 +147,9 @@ def run_demand_predictor(product_id, time_period, optional_date):
 
     forecast = model.predict(future)
 
+    # Apply Gaussian smoothing to reduce high spikes
+    forecast['yhat'] = gaussian_filter1d(forecast['yhat'], sigma=5)
+
     cast_data = forecast[['ds','yhat']].copy()
     cast_data.columns = ["Date","Price"]
     cast_data['Type'] = 'Forecast'
@@ -173,8 +159,6 @@ def run_demand_predictor(product_id, time_period, optional_date):
     predicted_demand = None
     if optional_date:
         predicted_demand = forecast[forecast['ds'] == optional_date]['yhat'].iloc[-1]
-    print(product_id)
-    print(graph_data.describe())
 
     return predicted_demand, graph_data
 
